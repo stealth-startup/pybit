@@ -88,6 +88,10 @@ def get_block_by_height(height, **kwargs):
     elif source == settings.SOURCE_LOCAL:
         raise exceptions.OperationNotSupportedError('local rpc does not support this operation')
     elif source == settings.SOURCE_BLOCKEXPLORER_COM:
+        #code picked up from old openexchangelib source code
+        # import re
+        # blockhash = re.search('00000000[0-9a-fA-F]+', util.fetch_data('http://blockexplorer.com/testnet/b/%d' % height)).group()
+        # data = fetch_json_data("http://blockexplorer.com/testnet/rawblock/%s" % blockhash)
         raise exceptions.OperationNotSupportedError('not implement yet')
     else:
         raise exceptions.OperationNotSupportedError(source=source)

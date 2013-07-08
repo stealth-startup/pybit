@@ -157,6 +157,7 @@ class Transaction(object):
         """
         :type input_addresses: list of str
         :type outputs: list of (n, address, amount)
+        :param outputs: amount is int, in Satoshi, not in BTC
         :type hash: str
         """
         assert isinstance(input_addresses, list)
