@@ -1,4 +1,10 @@
-def local_rpc_channel(filename=None):
+from pybit import util
+from pybit import settings
+from pybit import exceptions
+from data import Block, Transaction
+
+
+def local_rpc_channel(config_file_name=None):
     """
     Connect to default bitcoin instance owned by this user, on this machine.
 
@@ -11,146 +17,166 @@ def local_rpc_channel(filename=None):
     from pybit.connection import BitcoinConnection
     from pybit.config import read_default_config
 
-    cfg = read_default_config(filename)
+    cfg = read_default_config(config_file_name)
     port = int(cfg.get('rpcport', '18332' if cfg.get('testnet') else '8332'))
     rcpuser = cfg.get('rpcuser', '')
 
     return BitcoinConnection(rcpuser, cfg['rpcpassword'], 'localhost', port)
 
 
-def send_from_address(from_address, payments, change_address=None, wallet_pwd=None, minconf=1, maxconf=999999, min_fee=None, min_fee_per_tx=0):
+def get_block_count(**kwargs):
     """
+    :rtype: int
+    """
+    source = kwargs.get('source', settings.SOURCE_LOCAL)
+    test_net = kwargs.get('test_net', settings.TEST_NET)
+
+    if source == settings.SOURCE_BLOCKCHAIN_INFO:
+        if test_net:
+            raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
+        else:
+            return int(util.fetch_data('https://blockchain.info/q/getblockcount'))
+    elif source == settings.SOURCE_LOCAL:
+        rpc = local_rpc_channel(kwargs.get('config_file_name'))
+        if test_net:
+            assert rpc.getinfo().testnet
+        return rpc.getblockcount()
+    elif source == settings.SOURCE_BLOCKEXPLORER_COM:
+        if test_net:
+            return int(util.fetch_data('https://blockexplorer.com/q/testnet/getblockcount'))
+        else:
+            return int(util.fetch_data('https://blockexplorer.com/q/getblockcount'))
+    else:
+        raise exceptions.OperationNotSupportedError(source=source)
+
+
+def get_block_by_hash(block_hash, **kwargs):
+    """
+    :type hash: str
+    :rtype Block:
+    """
+    source = kwargs.get('source', settings.SOURCE_LOCAL)
+    test_net = kwargs.get('test_net', settings.TEST_NET)
+
+    if source == settings.SOURCE_BLOCKCHAIN_INFO:
+        if test_net:
+            raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
+        else:
+            return util.populate_block(util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash))
+    elif source == settings.SOURCE_LOCAL:
+        raise exceptions.OperationNotSupportedError('local rpc does not support this operation')
+    elif source == settings.SOURCE_BLOCKEXPLORER_COM:
+        raise exceptions.OperationNotSupportedError('not implement yet')
+    else:
+        raise exceptions.OperationNotSupportedError(source=source)
+
+
+def get_block_by_height(height, **kwargs):
+    """
+    :type height: int
+    :rtype: Block
+    """
+    source = kwargs.get('source', settings.SOURCE_LOCAL)
+    test_net = kwargs.get('test_net', settings.TEST_NET)
+
+    if source == settings.SOURCE_BLOCKCHAIN_INFO:
+        if test_net:
+            raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
+        else:
+            all_blocks = util.fetch_json('http://blockchain.info/block-height/%d?format=json' % height)
+            return util.populate_block([b for b in all_blocks if b.get('main_chain') is True][0])
+    elif source == settings.SOURCE_LOCAL:
+        raise exceptions.OperationNotSupportedError('local rpc does not support this operation')
+    elif source == settings.SOURCE_BLOCKEXPLORER_COM:
+        raise exceptions.OperationNotSupportedError('not implement yet')
+    else:
+        raise exceptions.OperationNotSupportedError(source=source)
+
+
+def send_from_local(payments, **kwargs):
+    """
+    optional paramaters:
+    change_address: will use a new address by default, however, you can specify a address as the change address
+    from_addresses: can be a list of str or str
+    min_conf: min confirmation
+    max_conf: max confirmation
+
     note: the wallet will be locked after this op if it is encrypted
-    return the transaction hash of the transaction
-    payments are in BTC
-    :type from_address: str
-    :type payments: dict from str to float
-    :type change_address: str or None
-    :param change_address: if None, change_address will be a new generated address
+    :type from_addresses: str or list of str
+    :type payments: dict from str to int
+    :param payments: payments are in Satoshi
     """
     from pybit.exceptions import NotEnoughFundError, ChangeAddressIllegitError, WalletWrongEncState, \
         SignRawTransactionFailedError
+    import decimal
 
     rpc = local_rpc_channel()
-    if from_address is None:
-        unspents = rpc.listunspent(minconf, maxconf)
+
+    from_addresses = kwargs.get('from_addresses')
+    if isinstance(from_addresses, str):
+        from_addresses = [from_addresses]
+    min_conf = kwargs.get('min_conf', 1)
+    max_conf = kwargs.get('max_conf', 9999)
+
+    if from_addresses is None:
+        unspent = rpc.listunspent(min_conf, max_conf)
     else:
-        unspents = [t for t in rpc.listunspent(minconf, maxconf) if t.address == from_address]
+        unspent = [t for t in rpc.listunspent(min_conf, max_conf) if t.address in [from_addresses]]
 
-    send_sum = sum(payments.values())
-    unspent_sum = sum([t.amount for t in unspents])
-    min_fee = min_fee if min_fee is not None else rpc.getinfo().paytxfee
+    for v in payments.values():
+        assert isinstance(v, (int, long))
+    send_sum = decimal.Decimal(sum(payments.values())) / 100000000
+    unspent_sum = sum([t.amount for t in unspent])
+    fee = kwargs.get('fee', rpc.getinfo().paytxfee)
 
-    if unspent_sum < send_sum + min_fee:
-        raise NotEnoughFundError(unspents=unspents, unspent_sum=unspent_sum, send_sum=send_sum,min_fee=min_fee)
+    if unspent_sum < send_sum + fee:
+        raise NotEnoughFundError(unspent=unspent, unspent_sum=unspent_sum, send_sum=send_sum, fee=fee)
 
-    #select unspents
-    unspents.sort(key=lambda t:t.confirmations, reverse=True)
+    #select unspent
+    unspent.sort(key=lambda t: t.confirmations, reverse=True)
 
     chosen = []
-    chosen_sum = 0
-    fee = min_fee
-    for t in unspents:
+    while sum(chosen) < send_sum + fee:
         chosen.append(t)
-        chosen_sum += t.amount
-        fee = max(min_fee, len(chosen)*min_fee_per_tx)
-        if chosen_sum >= fee + send_sum:
-            break
 
-    change = float(chosen_sum - fee - send_sum)
+    change = sum(chosen) - fee - send_sum
+    change_address = kwargs.get('change_address')
     if change > 0:
         payments = dict(payments)  # make a copy of payments so that the original object won't be changed
         if change_address is None:
             change_address = rpc.getnewaddress()
         if change_address in payments:
             raise ChangeAddressIllegitError(change_address=change_address, payments=payments)
-        payments[change_address] = change
+        payments[change_address] = int(round(float(change) * 100000000))
 
     #compose raw transaction
     raw_tx = rpc.createrawtransaction(
         [{'txid':c.txid, 'vout':c.vout} for c in chosen],
-        payments
+        {address: v/100000000.0 for address, v in payments.iteritems()}
     )
 
-    #make sure the wallet is not locked
-    if wallet_pwd:
-        try:
-            rpc.walletlock()  # lock the wallet so we make sure it has sufficient time in the later process
-        except WalletWrongEncState:
-            pass
-        rpc.walletpassphrase(wallet_pwd, 10)  # unlock the wallet
+    wallet_pwd = kwargs.get('wallet_pwd')
+    try:
+        #make sure the wallet is not locked
+        if wallet_pwd:
+            try:
+                rpc.walletlock()  # lock the wallet so we make sure it has sufficient time in the later process
+            except WalletWrongEncState:
+                pass
+            rpc.walletpassphrase(wallet_pwd, 10)  # unlock the wallet
 
-    #sign raw transaction
-    rst = rpc.signrawtransaction(raw_tx)
-    if rst['complete'] == 0:
-        raise SignRawTransactionFailedError(sign_result=rst)
+        #sign raw transaction
+        rst = rpc.signrawtransaction(raw_tx)
+        if rst['complete'] == 0:
+            raise SignRawTransactionFailedError(sign_result=rst)
 
-    #lock the wallet
-    if wallet_pwd:
-        try:
-            rpc.walletlock()
-        except WalletWrongEncState:
-            pass
+        #send the signed raw transaction to the network
+        return rpc.sendrawtransaction(rst['hex'])
+    finally:
+        #lock the wallet
+        if wallet_pwd:
+            try:
+                rpc.walletlock()
+            except WalletWrongEncState:
+                pass
 
-    #send the signed raw transaction to the network
-    return rpc.sendrawtransaction(rst['hex'])
-
-
-def get_block_by_hash(block_hash):
-    """
-    return a block-chain style json-encoded block
-    TODO: this is a very simple implementation and it do not analysis the signatures at all. it just ignored the
-    non-standard transactions which should be considered.
-    """
-    def get_vout(raw_vout):
-        value = int(raw_vout['value'] * 100000000)
-        assert len(raw_vout['scriptPubKey']['addresses']) == 1
-        address = raw_vout['scriptPubKey']['addresses'][0]
-        return {
-            'n': raw_vout['n'],
-            'value': value,
-            'addr': address,
-        }
-
-    def get_vin(rpc, raw_vin):
-        tx_hash = raw_vin['txid']
-        vout_n = raw_vin['vout']
-        tx = rpc.decoderawtransaction(rpc.getrawtransaction(tx_hash, False))
-        vout = [out for out in tx['vout'] if out["n"] == vout_n]
-        assert len(vout) == 1
-
-        return {
-            'prev_out': get_vout(vout[0])
-        }
-
-    rpc = local_rpc_channel()
-    raw_block = rpc.getblock(block_hash)
-    block = {
-        'height': raw_block['height'],
-        'hash': raw_block['hash'],
-        'prev_block': raw_block['previousblockhash'],
-        'time': raw_block['time'],
-        'bits': int(raw_block['bits'], 16),
-        'main_chain': True,
-        'tx':[],
-    }
-
-    for tx_hash in raw_block['tx']:
-        try:
-            raw_tx = rpc.decoderawtransaction(rpc.getrawtransaction(tx_hash, False))
-            block['tx'].append({
-                'hash': tx_hash,
-                'inputs':[get_vin(rpc, d) for d in raw_tx['vin'] if 'coinbase' not in d],
-                'out':[get_vout(d) for d in raw_tx['vout']],
-            })
-        except:
-            pass  # none standards are just passed
-
-    return {'blocks': [block] }
-
-
-def get_block_by_height(height):
-    """
-    return a block-chain style json-encoded block
-    """
-    return get_block_by_hash(local_rpc_channel().getblockhash(height))

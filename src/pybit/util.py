@@ -19,6 +19,10 @@
 # THE SOFTWARE.
 """Generic utilities used by bitcoin client library."""
 from copy import copy
+from datetime import datetime
+from data import Block, Transaction
+
+UNIX_EPOCH = datetime(1970, 1, 1, 0, 0)
 
 
 class DStruct(object):
@@ -47,3 +51,56 @@ class DStruct(object):
             module=self.__class__.__module__, classname=self.__class__.__name__,
             slots=", ".join('{k}={v!r}'.format(k=k, v=v) for k, v in
                             self.__dict__.items()))
+
+
+def fetch_data(url):
+    """
+    :type url: str
+    :rtype: str
+    """
+    import urllib2
+    return urllib2.urlopen(url).read()
+
+
+def fetch_json(url):
+    """
+    :type url: str
+    """
+    import urllib2
+    import json
+    return json.load(urllib2.urlopen(url))
+
+
+def timestamp_to_datetime(timestamp):
+    """
+    our timestamp is 1000 times smaller than standard
+    :type timestamp: int
+    :rtype : datetime
+    """
+    return datetime.utcfromtimestamp(timestamp)
+
+
+def populate_block(json_block, **extra_attributes):
+    """
+    :type json_block: dict
+    :rtype: Block
+    """
+    height = extra_attributes.get('height', json_block['height'])
+    hash = extra_attributes.get('hash', json_block['hash'])
+    previous_hash = extra_attributes.get('previous_hash', json_block['prev_block'])
+    timestamp = extra_attributes.get('timestamp', timestamp_to_datetime(json_block['time']))
+
+    txs = [
+        Transaction(
+            input_addresses=[input['prev_out']['addr']
+                for input in tx['inputs'] if input.get('prev_out', {}).get('addr', None) is not None
+            ],
+            outputs=sorted([(output['n'], output['addr'], output['value'])
+                for output in tx['out'] if 'addr' in output and 'value' in output and 'n' in output
+            ], key=lambda t: t[0]),
+            hash=tx['hash']
+        )
+        for tx in json_block['tx'] if 'hash' in tx
+    ]
+
+    return Block(height=height, hash=hash, previous_hash=previous_hash, transactions=txs, timestamp=timestamp)

@@ -1,22 +1,6 @@
+# Copyright (c) 2013 Rex <fdrex1987@gmail.com>
 # Copyright (c) 2010 Witchspace <witchspace81@gmail.com>
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
+
 """
 Bitcoin RPC service, data objects.
 """
@@ -166,3 +150,52 @@ class MiningInfo(DStruct):
     - *testnet* -- True if connected to testnet, False if on real network.
 
     """
+
+
+class Transaction(object):
+    def __init__(self, input_addresses, outputs, hash):
+        """
+        :type input_addresses: list of str
+        :type outputs: list of (n, address, amount)
+        :type hash: str
+        """
+        assert isinstance(input_addresses, list)
+        assert isinstance(outputs, list)
+        assert isinstance(hash, str)
+
+        self.input_addresses = input_addresses
+        self.outputs = outputs
+        self.hash = hash
+
+    def __str__(self):
+        return 'input_addresses: %s, outputs: %s, hash: %s' % (str(self.input_addresses), str(self.outputs), self.hash)
+
+    def __unicode__(self):
+        return unicode(str(self))
+
+    __repr__ = __str__
+
+
+class Block(object):
+    def __init__(self, height, hash, previous_hash, transactions, timestamp):
+        """
+        :type height: int
+        :type hash: str
+        :type previous_hash: str
+        :type transactions: list of Transaction
+        :type timestamp: Datetime
+        """
+        self.height = height
+        self.hash = hash
+        self.previous_hash = previous_hash
+        self.transactions = transactions
+        self.timestamp = timestamp
+
+    def __str__(self):
+        return 'height: %d, hash: %s, previous_hash: %s, timestamp: %s, transactions: %s' % (
+            self.height, self.hash, self.previous_hash, str(self.timestamp), str(self.transactions))
+
+    def __unicode__(self):
+        return unicode(str(self))
+
+    __repr__ = __str__
