@@ -38,10 +38,10 @@ class DStruct(object):
         # order
         if len(args_t) > len(self._fields):
             raise TypeError("Number of arguments is larger than of predefined fields")
-        # Copy default values
+            # Copy default values
         for (k, v) in self._defaults.items():
             self.__dict__[k] = copy(v)
-        # Set pass by value arguments
+            # Set pass by value arguments
         self.__dict__.update(zip(self._fields, args_t))
         # dict
         self.__dict__.update(args_d)
@@ -59,6 +59,7 @@ def fetch_data(url):
     :rtype: str
     """
     import urllib2
+
     return urllib2.urlopen(url).read()
 
 
@@ -68,6 +69,7 @@ def fetch_json(url):
     """
     import urllib2
     import json
+
     return json.load(urllib2.urlopen(url))
 
 
@@ -92,12 +94,12 @@ def populate_block(json_block, **extra_attributes):
 
     txs = [
         Transaction(
-            input_addresses=[input['prev_out']['addr']
-                for input in tx['inputs'] if input.get('prev_out', {}).get('addr', None) is not None
-            ],
+            input_addresses=
+            [input['prev_out']['addr'] for input in tx['inputs'] if
+             input.get('prev_out', {}).get('addr', None) is not None],
             outputs=sorted([(output['n'], output['addr'], output['value'])
-                for output in tx['out'] if 'addr' in output and 'value' in output and 'n' in output
-            ], key=lambda t: t[0]),
+                            for output in tx['out'] if 'addr' in output and 'value' in output and 'n' in output
+                           ], key=lambda t: t[0]),
             hash=tx['hash']
         )
         for tx in json_block['tx'] if 'hash' in tx
