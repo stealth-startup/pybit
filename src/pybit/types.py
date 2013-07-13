@@ -1,13 +1,38 @@
 # Copyright (c) 2013 Rex <fdrex1987@gmail.com>
 # Copyright (c) 2010 Witchspace <witchspace81@gmail.com>
 
-"""
-Bitcoin RPC service, data objects.
-"""
-from pybit.util import DStruct
+from copy import copy
 
 
-class ServerInfo(DStruct):
+class DynamicStruct(object):
+    """
+    Simple dynamic structure, like :const:`collections.namedtuple` but more flexible
+    (and less memory-efficient)
+    """
+    # Default arguments. Defaults are *shallow copied*, to allow defaults such as [].
+    _fields = []
+    _defaults = {}
+
+    def __init__(self, *args_t, **args_d):
+        # order
+        if len(args_t) > len(self._fields):
+            raise TypeError("Number of arguments is larger than of predefined fields")
+            # Copy default values
+        for (k, v) in self._defaults.items():
+            self.__dict__[k] = copy(v)
+            # Set pass by value arguments
+        self.__dict__.update(zip(self._fields, args_t))
+        # dict
+        self.__dict__.update(args_d)
+
+    def __repr__(self):
+        return '{module}.{classname}({slots})'.format(
+            module=self.__class__.__module__, classname=self.__class__.__name__,
+            slots=", ".join('{k}={v!r}'.format(k=k, v=v) for k, v in
+                            self.__dict__.items()))
+
+
+class ServerInfo(DynamicStruct):
     """
     Information object returned by :func:`~bitcoinrpc.connection.BitcoinConnection.getinfo`.
 
@@ -43,7 +68,7 @@ class ServerInfo(DStruct):
     """
 
 
-class AccountInfo(DStruct):
+class AccountInfo(DynamicStruct):
     """
     Information object returned by :func:`~pybit.connection.BitcoinConnection.listreceivedbyaccount`.
 
@@ -56,7 +81,7 @@ class AccountInfo(DStruct):
     """
 
 
-class AddressInfo(DStruct):
+class AddressInfo(DynamicStruct):
     """
     Information object returned by :func:`~pybit.connection.BitcoinConnection.listreceivedbyaddress`.
 
@@ -71,7 +96,7 @@ class AddressInfo(DStruct):
     """
 
 
-class TransactionInfo(DStruct):
+class TransactionInfo(DynamicStruct):
     """
     Information object returned by :func:`~pybit.connection.BitcoinConnection.listtransactions`.
 
@@ -97,7 +122,7 @@ class TransactionInfo(DStruct):
     """
 
 
-class AddressValidation(DStruct):
+class AddressValidation(DynamicStruct):
     """
     Information object returned by :func:`~pybit.connection.BitcoinConnection.validateaddress`.
 
@@ -110,7 +135,7 @@ class AddressValidation(DStruct):
     """
 
 
-class WorkItem(DStruct):
+class WorkItem(DynamicStruct):
     """
     Information object returned by :func:`~pybit.connection.BitcoinConnection.getwork`.
 
@@ -125,7 +150,7 @@ class WorkItem(DStruct):
     """
 
 
-class MiningInfo(DStruct):
+class MiningInfo(DynamicStruct):
     """
     Information object returned by :func:`~pybit.connection.BitcoinConnection.getmininginfo`.
 
@@ -154,7 +179,8 @@ class MiningInfo(DStruct):
 
 class Printable(object):
     def __str__(self):
-        return '\n'.join([k+' : ' + str(v) for k, v in self.__dict__.iteritems() if not k.startswith('_')])
+        contents = '\n'.join([k+' : ' + str(v) for k, v in self.__dict__.iteritems() if not k.startswith('_')])
+        return self.__class__.__name__ + " : [\n" + contents + "\n]\n"
 
     def __unicode__(self):
         return unicode(str(self))

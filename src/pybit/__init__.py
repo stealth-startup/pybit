@@ -1,7 +1,7 @@
 from pybit import util
 from pybit import settings
 from pybit import exceptions
-from data import Block, Transaction
+from types import Block, Transaction
 
 
 def local_rpc_channel(config_file_name=None):

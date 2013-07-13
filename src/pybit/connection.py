@@ -5,7 +5,7 @@ Connect to Bitcoin server via JSON-RPC.
 """
 from pybit.proxy import AuthServiceProxy
 from pybit.exceptions import wrap_exception, BitcoinException, WalletPassphraseIncorrect,WalletAlreadyUnlocked
-from pybit.data import ServerInfo, AccountInfo, AddressInfo, TransactionInfo, AddressValidation, WorkItem, MiningInfo
+from pybit.types import ServerInfo, AccountInfo, AddressInfo, TransactionInfo, AddressValidation, WorkItem, MiningInfo
 
 
 class BitcoinConnection(object):

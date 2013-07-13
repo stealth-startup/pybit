@@ -18,39 +18,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """Generic utilities used by bitcoin client library."""
-from copy import copy
 from datetime import datetime
-from data import Block, Transaction
+from types import Block, Transaction
+
 
 UNIX_EPOCH = datetime(1970, 1, 1, 0, 0)
-
-
-class DStruct(object):
-    """
-    Simple dynamic structure, like :const:`collections.namedtuple` but more flexible
-    (and less memory-efficient)
-    """
-    # Default arguments. Defaults are *shallow copied*, to allow defaults such as [].
-    _fields = []
-    _defaults = {}
-
-    def __init__(self, *args_t, **args_d):
-        # order
-        if len(args_t) > len(self._fields):
-            raise TypeError("Number of arguments is larger than of predefined fields")
-            # Copy default values
-        for (k, v) in self._defaults.items():
-            self.__dict__[k] = copy(v)
-            # Set pass by value arguments
-        self.__dict__.update(zip(self._fields, args_t))
-        # dict
-        self.__dict__.update(args_d)
-
-    def __repr__(self):
-        return '{module}.{classname}({slots})'.format(
-            module=self.__class__.__module__, classname=self.__class__.__name__,
-            slots=", ".join('{k}={v!r}'.format(k=k, v=v) for k, v in
-                            self.__dict__.items()))
 
 
 def fetch_data(url):

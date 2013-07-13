@@ -11,7 +11,7 @@ USE_FAKE_DATA = True
 IGNORE_SEND_FROM_LOCAL = True
 
 if USE_FAKE_DATA:
-    from data import Block, Transaction
+    from types import Block, Transaction
     from datetime import datetime, timedelta
 
     now = datetime.now()
@@ -22,7 +22,7 @@ if USE_FAKE_DATA:
             height=1,
             hash='1',
             previous_hash='0',
-            transactions=[],
+            transactions=[],  # test empty
             timestamp=now,
         ),
         Block(
@@ -57,12 +57,12 @@ if USE_FAKE_DATA:
                 #captain miao: limit sell 0.09*99
                 Transaction(['captain_miao'], [(1, 'asm_limit_sell', 9000099)], 'hash4'),
                 #rex: market buy 1BTC
-                Transaction(['rex'], [(1, 'asm_market_buy', 100000000)], 'hash5'),
+                Transaction(['rex'], [(1, 'asm_market_buy', 1000000000)], 'hash5'),
             ],
             timestamp=now+delta*2
         )
     ]
 
     FAKE_DATA_GET_BLOCK_COUNT = len(blocks)  # exchange start height = 0 when debug
-    FAKE_DATA_GET_BLOCK_BY_HASH = {str(i+1):blocks[i] for i in len(blocks)}
-    FAKE_DATA_GET_BLOCK_BY_HEIGHT = {i+1:blocks[i] for i in len(blocks)}
+    FAKE_DATA_GET_BLOCK_BY_HASH = {str(i+1):blocks[i] for i in xrange(len(blocks))}
+    FAKE_DATA_GET_BLOCK_BY_HEIGHT = {i+1:blocks[i] for i in xrange(len(blocks))}
