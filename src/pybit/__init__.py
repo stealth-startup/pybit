@@ -28,8 +28,8 @@ def get_block_count(**kwargs):
     """
     :rtype: int
     """
-    if settings.DEBUG:
-        return settings.DEBUG_GET_BLOCK_COUNT
+    if settings.USE_FAKE_DATA:
+        return settings.FAKE_DATA_GET_BLOCK_COUNT
 
     source = kwargs.get('source', settings.SOURCE_LOCAL)
     test_net = kwargs.get('test_net', settings.TEST_NET)
@@ -58,8 +58,8 @@ def get_block_by_hash(block_hash, **kwargs):
     :type hash: str
     :rtype Block:
     """
-    if settings.DEBUG:
-        return settings.DEBUG_GET_BLOCK_BY_HASH['block_hash']
+    if settings.USE_FAKE_DATA:
+        return settings.FAKE_DATA_GET_BLOCK_BY_HASH['block_hash']
 
     source = kwargs.get('source', settings.SOURCE_LOCAL)
     test_net = kwargs.get('test_net', settings.TEST_NET)
@@ -82,8 +82,8 @@ def get_block_by_height(height, **kwargs):
     :type height: int
     :rtype: Block
     """
-    if settings.DEBUG:
-        return settings.DEBUG_GET_BLOCK_BY_HEIGHT[height]
+    if settings.USE_FAKE_DATA:
+        return settings.FAKE_DATA_GET_BLOCK_BY_HEIGHT[height]
 
     source = kwargs.get('source', settings.SOURCE_LOCAL)
     test_net = kwargs.get('test_net', settings.TEST_NET)
@@ -119,9 +119,8 @@ def send_from_local(payments, **kwargs):
     :type payments: dict from str to int
     :param payments: payments are in Satoshi
     """
-    if settings.DEBUG:
-        if not settings.DEBUG_SEND_PAYMENT:
-            return '11111111111111111100000000000000000000'  # a fake transaction id
+    if settings.IGNORE_SEND_FROM_LOCAL:
+        return '0'*30  # a fake transaction id
 
     from pybit.exceptions import NotEnoughFundError, ChangeAddressIllegitError, WalletWrongEncState, \
         SignRawTransactionFailedError
@@ -129,7 +128,7 @@ def send_from_local(payments, **kwargs):
 
     rpc = local_rpc_channel()
 
-    if settings.DEBUG or kwargs.get('test_net', settings.TEST_NET):  # in this case, testnet is enforced
+    if settings.USE_FAKE_DATA or kwargs.get('test_net', settings.TEST_NET):  # in this case, testnet is enforced
         assert rpc.getinfo().testnet
 
     from_addresses = kwargs.get('from_addresses')
