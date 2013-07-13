@@ -152,7 +152,17 @@ class MiningInfo(DStruct):
     """
 
 
-class Transaction(object):
+class Printable(object):
+    def __str__(self):
+        return '\n'.join([k+' : ' + str(v) for k, v in self.__dict__.iteritems() if not k.startswith('_')])
+
+    def __unicode__(self):
+        return unicode(str(self))
+
+    __repr__ = __str__
+
+
+class Transaction(Printable):
     def __init__(self, input_addresses, outputs, hash):
         """
         :type input_addresses: list of str
@@ -168,16 +178,8 @@ class Transaction(object):
         self.outputs = outputs
         self.hash = hash
 
-    def __str__(self):
-        return 'input_addresses: %s, outputs: %s, hash: %s' % (str(self.input_addresses), str(self.outputs), self.hash)
 
-    def __unicode__(self):
-        return unicode(str(self))
-
-    __repr__ = __str__
-
-
-class Block(object):
+class Block(Printable):
     def __init__(self, height, hash, previous_hash, transactions, timestamp):
         """
         :type height: int
@@ -191,12 +193,3 @@ class Block(object):
         self.previous_hash = previous_hash
         self.transactions = transactions
         self.timestamp = timestamp
-
-    def __str__(self):
-        return 'height: %d, hash: %s, previous_hash: %s, timestamp: %s, transactions: %s' % (
-            self.height, self.hash, self.previous_hash, str(self.timestamp), str(self.transactions))
-
-    def __unicode__(self):
-        return unicode(str(self))
-
-    __repr__ = __str__
