@@ -59,7 +59,7 @@ if USE_FAKE_DATA:
                 #rex: market buy 1BTC
                 Transaction(['rex'], [(1, 'asm_market_buy', 1000000000)], 'hash5'),
             ],
-            timestamp=now+delta*2
+            timestamp=now+delta*3
         )
     ]
 
