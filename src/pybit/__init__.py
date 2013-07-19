@@ -68,11 +68,18 @@ def get_block_by_hash(block_hash, **kwargs):
         if test_net:
             raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
         else:
-            return util.populate_block(util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash))
+            return util.populate_block__block_chain_dot_info(util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash))
     elif source == settings.SOURCE_LOCAL:
-        raise exceptions.OperationNotSupportedError('local rpc does not support this operation')
+        raise exceptions.OperationNotSupportedError('local rpc does not support this operation yet')
     elif source == settings.SOURCE_BLOCKEXPLORER_COM:
-        raise exceptions.OperationNotSupportedError('not implement yet')
+        if test_net:
+            html_url = "http://blockexplorer.com/testnet/block/" + block_hash
+            raw_block_url = "http://blockexplorer.com/testnet/rawblock/" + block_hash
+        else:
+            html_url = "http://blockexplorer.com/block/" + block_hash
+            raw_block_url = "http://blockexplorer.com/rawblock/" + block_hash
+
+        return util.retrieve_block__block_explorer_dot_com(html_url, raw_block_url)
     else:
         raise exceptions.OperationNotSupportedError(source=source)
 
@@ -93,15 +100,22 @@ def get_block_by_height(height, **kwargs):
             raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
         else:
             all_blocks = util.fetch_json('http://blockchain.info/block-height/%d?format=json' % height)
-            return util.populate_block([b for b in all_blocks if b.get('main_chain') is True][0])
+            return util.populate_block__block_chain_dot_info([b for b in all_blocks if b.get('main_chain') is True][0])
     elif source == settings.SOURCE_LOCAL:
         raise exceptions.OperationNotSupportedError('local rpc does not support this operation')
     elif source == settings.SOURCE_BLOCKEXPLORER_COM:
-        #code picked up from old openexchangelib source code
-        # import re
-        # blockhash = re.search('00000000[0-9a-fA-F]+', util.fetch_data('http://blockexplorer.com/testnet/b/%d' % height)).group()
-        # data = fetch_json_data("http://blockexplorer.com/testnet/rawblock/%s" % blockhash)
-        raise exceptions.OperationNotSupportedError('not implement yet')
+        if test_net:
+            html_url = "http://blockexplorer.com/testnet/b/" + str(height)
+        else:
+            html_url = "http://blockexplorer.com/b/" + str(height)
+
+        block_hash = util.get_block_hash__block_explorer_dot_com(html_url)
+        if test_net:
+            raw_block_url = "http://blockexplorer.com/testnet/rawblock/" + block_hash
+        else:
+            raw_block_url = "http://blockexplorer.com/rawblock/" + block_hash
+
+        return util.retrieve_block__block_explorer_dot_com(html_url, raw_block_url)
     else:
         raise exceptions.OperationNotSupportedError(source=source)
 
