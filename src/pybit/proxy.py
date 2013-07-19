@@ -2,6 +2,7 @@
   Copyright (c) 2007 Jan-Klaas Kollhof
   Copyright (c) 2011-2013 Jeff Garzik
   Copyright (c) 2013 Nikolay Belikov (nikolay@belikov.me)
+  Copyright (c) 2013 Rex
 
   jsonrpc is free software; you can redistribute it and/or modify
   it under the terms of the GNU Lesser General Public License as published by
@@ -23,7 +24,7 @@ try:
 except ImportError:
     import httplib
 import base64
-import json
+import simplejson
 import decimal
 try:
     import urllib.parse as urlparse
@@ -93,10 +94,10 @@ class FakeTransport(object):
         self._data[method_name].append(fixture)
 
     def load_raw(self, method_name, fixture):
-        self._data[method_name].append(json.dumps(fixture))
+        self._data[method_name].append(simplejson.dumps(fixture, use_decimal=True))
 
     def request(self, serialized_data):
-        data = json.loads(serialized_data, parse_float=decimal.Decimal)
+        data = simplejson.loads(serialized_data, use_decimal=True)
         method_name = data['method']
         return self._data[method_name].popleft()
 
@@ -116,9 +117,9 @@ class RPCMethod(object):
                 'method': self._method_name,
                 'params': args,
                 'id': self._service_proxy._id_counter}
-        postdata = json.dumps(data)
+        postdata = simplejson.dumps(data,use_decimal=True)
         resp = self._service_proxy._transport.request(postdata)
-        resp = json.loads(resp, parse_float=decimal.Decimal)
+        resp = simplejson.loads(resp, use_decimal=True)
 
         if resp['error'] is not None:
             self._service_proxy._raise_exception(resp['error'])

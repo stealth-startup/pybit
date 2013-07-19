@@ -154,13 +154,13 @@ def send_from_local(payments, **kwargs):
     if from_addresses is None:
         unspent = rpc.listunspent(min_conf, max_conf)
     else:
-        unspent = [t for t in rpc.listunspent(min_conf, max_conf) if t.address in [from_addresses]]
+        unspent = [t for t in rpc.listunspent(min_conf, max_conf) if t.address in from_addresses]
 
     for v in payments.values():
         assert isinstance(v, (int, long))
     send_sum = decimal.Decimal(sum(payments.values())) / 100000000
     unspent_sum = sum([t.amount for t in unspent])
-    fee = kwargs.get('fee', rpc.getinfo().paytxfee)
+    fee = decimal.Decimal(kwargs.get('fee', rpc.getinfo().paytxfee))
 
     if unspent_sum < send_sum + fee:
         raise NotEnoughFundError(unspent=unspent, unspent_sum=unspent_sum, send_sum=send_sum, fee=fee)
@@ -169,10 +169,13 @@ def send_from_local(payments, **kwargs):
     unspent.sort(key=lambda t: t.confirmations, reverse=True)
 
     chosen = []
-    while sum(chosen) < send_sum + fee:
-        chosen.append(t)
+    for t in unspent:
+        if sum([c.amount for c in chosen]) < send_sum + fee:
+            chosen.append(t)
+        else:
+            break
 
-    change = sum(chosen) - fee - send_sum
+    change = sum([c.amount for c in chosen]) - fee - send_sum
     change_address = kwargs.get('change_address')
     if change > 0:
         payments = dict(payments)  # make a copy of payments so that the original object won't be changed
@@ -180,12 +183,12 @@ def send_from_local(payments, **kwargs):
             change_address = rpc.getnewaddress()
         if change_address in payments:
             raise ChangeAddressIllegitError(change_address=change_address, payments=payments)
-        payments[change_address] = int(round(float(change) * 100000000))
+        payments[change_address] = change * 100000000
 
     #compose raw transaction
     raw_tx = rpc.createrawtransaction(
         [{'txid':c.txid, 'vout':c.vout} for c in chosen],
-        {address: v/100000000.0 for address, v in payments.iteritems()}
+        {address: decimal.Decimal(v)/decimal.Decimal(100000000.0) for address, v in payments.iteritems()}
     )
 
     wallet_pwd = kwargs.get('wallet_pwd')
