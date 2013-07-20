@@ -15,7 +15,7 @@ if __name__ == "__main__":
     test_receiver1 = "mpdptxB1Xy6p9rUpgQDnGenewK1AVFTjti"
     test_receiver2 = "mp7tFikT9eCLDYCW3PUzyLK6WHx4zGRchn"
 
-    payments = {test_receiver1: 1500000000, test_receiver2: 1500000000}
+    payments = {test_receiver1: 15, test_receiver2: 15}
     from_addresses = [test_sender1, test_sender2]
     fee = 0
     tx = pybit.send_from_local(payments, from_addresses=from_addresses, fee=fee, change_address=test_sender1)

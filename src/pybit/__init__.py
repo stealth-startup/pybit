@@ -136,9 +136,20 @@ def send_from_local(payments, **kwargs):
     if settings.IGNORE_SEND_FROM_LOCAL:
         return '0'*30  # a fake transaction id
 
+    from decimal import Decimal
     from pybit.exceptions import NotEnoughFundError, ChangeAddressIllegitError, WalletWrongEncState, \
         SignRawTransactionFailedError
-    import decimal
+
+    #check types, turn all types to Decimal
+    _payments = {}
+    for address, amount in payments.iteritems():
+        assert isinstance(amount, (Decimal, int, long))
+        _payments[address] = Decimal(amount)
+    payments = _payments
+
+    fee = kwargs.get('fee')
+    if fee is not None:
+        assert isinstance(fee, (Decimal, int, long))
 
     rpc = local_rpc_channel()
 
@@ -156,11 +167,9 @@ def send_from_local(payments, **kwargs):
     else:
         unspent = [t for t in rpc.listunspent(min_conf, max_conf) if t.address in from_addresses]
 
-    for v in payments.values():
-        assert isinstance(v, (int, long))
-    send_sum = decimal.Decimal(sum(payments.values())) / 100000000
+    send_sum = sum(payments.values())
     unspent_sum = sum([t.amount for t in unspent])
-    fee = decimal.Decimal(kwargs.get('fee', rpc.getinfo().paytxfee))
+    fee = Decimal(kwargs.get('fee', rpc.getinfo().paytxfee))
 
     if unspent_sum < send_sum + fee:
         raise NotEnoughFundError(unspent=unspent, unspent_sum=unspent_sum, send_sum=send_sum, fee=fee)
@@ -183,12 +192,12 @@ def send_from_local(payments, **kwargs):
             change_address = rpc.getnewaddress()
         if change_address in payments:
             raise ChangeAddressIllegitError(change_address=change_address, payments=payments)
-        payments[change_address] = change * 100000000
+        payments[change_address] = change
 
     #compose raw transaction
     raw_tx = rpc.createrawtransaction(
         [{'txid':c.txid, 'vout':c.vout} for c in chosen],
-        {address: decimal.Decimal(v)/decimal.Decimal(100000000.0) for address, v in payments.iteritems()}
+        {address: v for address, v in payments.iteritems()}
     )
 
     wallet_pwd = kwargs.get('wallet_pwd')
