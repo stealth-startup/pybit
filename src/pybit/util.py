@@ -1,5 +1,5 @@
 # Copyright (c) 2010 Witchspace <witchspace81@gmail.com>
-#
+# Copyright (c) 2013 Rex
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -29,7 +29,6 @@ UNIX_EPOCH = datetime(1970, 1, 1, 0, 0)
 def fetch_data(url):
     """
     :type url: str
-    :rtype: str
     """
     import urllib2
 
@@ -48,7 +47,6 @@ def fetch_json(url):
 
 def timestamp_to_datetime(timestamp):
     """
-    our timestamp is 1000 times smaller than standard
     :type timestamp: int
     :rtype : datetime
     """
@@ -103,6 +101,7 @@ def retrieve_block__block_explorer_dot_com(html_page_url, raw_block_url):
     """
     page = html.parse(html_page_url)
     raw_data = fetch_json(raw_block_url)
+
     height = int(page.xpath("//body/h1[1]")[0].text.split(' ')[1])
     hash = raw_data['hash']
     previous_hash = raw_data['prev_block']

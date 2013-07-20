@@ -1,14 +1,18 @@
+__author__ = 'Rex'
+
+
 import sys
 sys.path.append('../src')
 
 import pybit
 from pybit import settings
 
-settings.IGNORE_SEND_FROM_LOCAL = False
 
 if __name__ == "__main__":
+    settings.IGNORE_SEND_FROM_LOCAL = False
+
     conn = pybit.local_rpc_channel()  # will use read_default_config
-    assert conn.getinfo().testnet # don't test on prodnet
+    assert conn.getinfo().testnet  # test on test net
 
     test_sender1 = "mqo6ZdP2AM6SRxYd5arTW29K2u4rr9Yz1F"
     test_sender2 = "n3KGzq4SCB2boWDYXkgBL4TaNMXLdRuXvQ"

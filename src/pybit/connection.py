@@ -328,7 +328,7 @@ class BitcoinConnection(object):
         return [AddressInfo(**x) for x in
                 self.proxy.listreceivedbyaddress(minconf, includeempty)]
 
-    def listaccounts(self, minconf=1, as_dict=False):
+    def listaccounts(self, minconf=1, as_dict=True):
         """
         Returns a list of account names.
 

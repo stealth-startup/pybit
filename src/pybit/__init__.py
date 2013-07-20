@@ -19,13 +19,17 @@ def local_rpc_channel(config_file_name=None):
 
     cfg = read_default_config(config_file_name)
     port = int(cfg.get('rpcport', '18332' if cfg.get('testnet') else '8332'))
-    rcpuser = cfg.get('rpcuser', '')
+    rcp_user = cfg.get('rpcuser', '')
 
-    return BitcoinConnection(rcpuser, cfg['rpcpassword'], 'localhost', port)
+    return BitcoinConnection(rcp_user, cfg['rpcpassword'], 'localhost', port)
 
 
 def get_block_count(**kwargs):
     """
+    optional paramters:
+    source: setting.SOURCE_BLOCKCHAIN_INFO or settings.SOURCE_LOCAL or settings.SOURCE_BLOCKEXPLORER_COM
+    test_net: True or False
+    config_file_name: local config file name
     :rtype: int
     """
     if settings.USE_FAKE_DATA:
@@ -41,8 +45,8 @@ def get_block_count(**kwargs):
             return int(util.fetch_data('https://blockchain.info/q/getblockcount'))
     elif source == settings.SOURCE_LOCAL:
         rpc = local_rpc_channel(kwargs.get('config_file_name'))
-        if test_net:
-            assert rpc.getinfo().testnet
+        if test_net != rpc.getinfo().testnet:
+            raise exceptions.BitcoindStateError(test_net=test_net, rpc_test_net=rpc.getinfo().testnet)
         return rpc.getblockcount()
     elif source == settings.SOURCE_BLOCKEXPLORER_COM:
         if test_net:
@@ -55,11 +59,15 @@ def get_block_count(**kwargs):
 
 def get_block_by_hash(block_hash, **kwargs):
     """
-    :type hash: str
+    optional paramters:
+    source: setting.SOURCE_BLOCKCHAIN_INFO or settings.SOURCE_LOCAL or settings.SOURCE_BLOCKEXPLORER_COM
+    test_net: True or False
+
+    :type block_hash: str
     :rtype Block:
     """
     if settings.USE_FAKE_DATA:
-        return settings.FAKE_DATA_GET_BLOCK_BY_HASH['block_hash']
+        return settings.FAKE_DATA_GET_BLOCK_BY_HASH[block_hash]
 
     source = kwargs.get('source', settings.SOURCE_LOCAL)
     test_net = kwargs.get('test_net', settings.TEST_NET)
@@ -68,7 +76,8 @@ def get_block_by_hash(block_hash, **kwargs):
         if test_net:
             raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
         else:
-            return util.populate_block__block_chain_dot_info(util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash))
+            return util.populate_block__block_chain_dot_info(
+                util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash))
     elif source == settings.SOURCE_LOCAL:
         raise exceptions.OperationNotSupportedError('local rpc does not support this operation yet')
     elif source == settings.SOURCE_BLOCKEXPLORER_COM:
@@ -86,6 +95,10 @@ def get_block_by_hash(block_hash, **kwargs):
 
 def get_block_by_height(height, **kwargs):
     """
+    optional paramters:
+    source: setting.SOURCE_BLOCKCHAIN_INFO or settings.SOURCE_LOCAL or settings.SOURCE_BLOCKEXPLORER_COM
+    test_net: True or False
+
     :type height: int
     :rtype: Block
     """
@@ -123,38 +136,48 @@ def get_block_by_height(height, **kwargs):
 def send_from_local(payments, **kwargs):
     """
     optional paramaters:
-    change_address: will use a new address by default, however, you can specify a address as the change address
+    change_address: str. will use a new address if not provided
     from_addresses: can be a list of str or str
-    min_conf: min confirmation
-    max_conf: max confirmation
+    min_conf: min confirmation, default is 1
+    max_conf: max confirmation, default is 9999
+    fee: default is getinfo().fee. unit is BTC
+    wallet_pwd: str
+    return_signed_transaction: True or False, if True, the return value is transaction_hash, transaction; if False, the
+     return value is transaction_hash
 
     note: the wallet will be locked after this op if it is encrypted
-    :type from_addresses: str or list of str
-    :type payments: dict from str to int
-    :param payments: payments are in Satoshi
+
+    :type payments: dict
+    :param payments: payments are in BTC
+    :rtype: str or tuple
     """
     if settings.IGNORE_SEND_FROM_LOCAL:
         return '0'*30  # a fake transaction id
 
     from decimal import Decimal
     from pybit.exceptions import NotEnoughFundError, ChangeAddressIllegitError, WalletWrongEncState, \
-        SignRawTransactionFailedError
+        SignRawTransactionFailedError, BitcoindStateError
 
-    #check types, turn all types to Decimal
+    #check types, turn all amounts to Decimal
     _payments = {}
     for address, amount in payments.iteritems():
-        assert isinstance(amount, (Decimal, int, long))
+        if not isinstance(amount, (Decimal, int, long)):
+            raise TypeError('only Decimal, int and long is allowed for the type of amount')
         _payments[address] = Decimal(amount)
     payments = _payments
 
-    fee = kwargs.get('fee')
-    if fee is not None:
-        assert isinstance(fee, (Decimal, int, long))
-
     rpc = local_rpc_channel()
 
+    fee = kwargs.get('fee', rpc.getinfo().paytxfee)
+    if not isinstance(fee, (Decimal, int, long)):
+        raise TypeError('fee must be Decimal, int, or long')
+
     if settings.USE_FAKE_DATA or kwargs.get('test_net', settings.TEST_NET):  # in this case, testnet is enforced
-        assert rpc.getinfo().testnet
+        if not rpc.getinfo().testnet:
+            raise BitcoindStateError(settings_USE_FAKE_DATA=settings.USE_FAKE_DATA,
+                                     kwargs_test_net=kwargs.get('test_net'),
+                                     settings_TEST_NET=settings.TEST_NET,
+                                     rpc_testnet=rpc.getinfo().testnet)
 
     from_addresses = kwargs.get('from_addresses')
     if isinstance(from_addresses, str):
@@ -169,7 +192,6 @@ def send_from_local(payments, **kwargs):
 
     send_sum = sum(payments.values())
     unspent_sum = sum([t.amount for t in unspent])
-    fee = Decimal(kwargs.get('fee', rpc.getinfo().paytxfee))
 
     if unspent_sum < send_sum + fee:
         raise NotEnoughFundError(unspent=unspent, unspent_sum=unspent_sum, send_sum=send_sum, fee=fee)
@@ -187,7 +209,6 @@ def send_from_local(payments, **kwargs):
     change = sum([c.amount for c in chosen]) - fee - send_sum
     change_address = kwargs.get('change_address')
     if change > 0:
-        payments = dict(payments)  # make a copy of payments so that the original object won't be changed
         if change_address is None:
             change_address = rpc.getnewaddress()
         if change_address in payments:
@@ -195,10 +216,7 @@ def send_from_local(payments, **kwargs):
         payments[change_address] = change
 
     #compose raw transaction
-    raw_tx = rpc.createrawtransaction(
-        [{'txid':c.txid, 'vout':c.vout} for c in chosen],
-        {address: v for address, v in payments.iteritems()}
-    )
+    raw_tx = rpc.createrawtransaction([{'txid':c.txid, 'vout':c.vout} for c in chosen], payments)
 
     wallet_pwd = kwargs.get('wallet_pwd')
     try:
@@ -211,12 +229,17 @@ def send_from_local(payments, **kwargs):
             rpc.walletpassphrase(wallet_pwd, 10)  # unlock the wallet
 
         #sign raw transaction
-        rst = rpc.signrawtransaction(raw_tx)
-        if rst['complete'] == 0:
-            raise SignRawTransactionFailedError(sign_result=rst)
+        sign_rst = rpc.signrawtransaction(raw_tx)
+        if sign_rst['complete'] == 0:
+            raise SignRawTransactionFailedError(sign_result=sign_rst)
 
         #send the signed raw transaction to the network
-        return rpc.sendrawtransaction(rst['hex'])
+        tx_hash = rpc.sendrawtransaction(sign_rst['hex'])
+
+        if kwargs.get('return_signed_transaction', False):
+            return tx_hash, sign_rst['hex']
+        else:
+            return tx_hash
     finally:
         #lock the wallet
         if wallet_pwd:

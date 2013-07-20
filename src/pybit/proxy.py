@@ -25,7 +25,7 @@ except ImportError:
     import httplib
 import base64
 import simplejson
-import decimal
+
 try:
     import urllib.parse as urlparse
 except ImportError:
@@ -52,10 +52,10 @@ class HTTPTransport(object):
             port = 80
         else:
             port = self.parsed_url.port
-        authpair = "%s:%s" % (self.parsed_url.username,
-                              self.parsed_url.password)
-        authpair = authpair.encode('utf8')
-        self.auth_header = "Basic ".encode('utf8') + base64.b64encode(authpair)
+        auth_pair = "%s:%s" % (self.parsed_url.username,
+                               self.parsed_url.password)
+        auth_pair = auth_pair.encode('utf8')
+        self.auth_header = "Basic ".encode('utf8') + base64.b64encode(auth_pair)
         if self.parsed_url.scheme == 'https':
             self.connection = httplib.HTTPSConnection(self.parsed_url.hostname,
                                                       port, None, None, False,
@@ -71,22 +71,23 @@ class HTTPTransport(object):
                                  'Authorization': self.auth_header,
                                  'Content-type': 'application/json'})
 
-        httpresp = self.connection.getresponse()
-        if httpresp is None:
+        http_resp = self.connection.getresponse()
+        if http_resp is None:
             self._raise_exception({
                 'code': -342, 'message': 'missing HTTP response from server'})
-        elif httpresp.status == httplib.FORBIDDEN:
+        elif http_resp.status == httplib.FORBIDDEN:
             msg = "bitcoind returns 403 Forbidden. Is your IP allowed?"
             raise TransportException(msg, code=403,
                                      protocol=self.parsed_url.scheme,
-                                     raw_detail=httpresp)
+                                     raw_detail=http_resp)
 
-        resp = httpresp.read()
+        resp = http_resp.read()
         return resp.decode('utf8')
 
 
 class FakeTransport(object):
     """A simple testing facility."""
+
     def __init__(self):
         self._data = defaultdict(deque)
 
@@ -117,8 +118,8 @@ class RPCMethod(object):
                 'method': self._method_name,
                 'params': args,
                 'id': self._service_proxy._id_counter}
-        postdata = simplejson.dumps(data,use_decimal=True)
-        resp = self._service_proxy._transport.request(postdata)
+        post_data = simplejson.dumps(data, use_decimal=True)
+        resp = self._service_proxy._transport.request(post_data)
         resp = simplejson.loads(resp, use_decimal=True)
 
         if resp['error'] is not None:
@@ -141,6 +142,7 @@ class AuthServiceProxy(object):
     exception_wrapper is a callable accepting a dictionary containing error
     code and message and returning a suitable exception object.
     """
+
     def __init__(self, service_url, transport=None, exception_wrapper=None):
         self._service_url = service_url
         self._id_counter = 0

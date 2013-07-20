@@ -16,5 +16,5 @@ setup(
         'Topic :: Office/Business :: Financial'
     ],
     packages=find_packages("src"),
-    package_dir={'': 'src'}, requires=['lxml']
+    package_dir={'': 'src'}, requires=['lxml', 'simplejson']
 )

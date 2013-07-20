@@ -1,4 +1,5 @@
 # Copyright (c) 2010 Witchspace <witchspace81@gmail.com>
+# Copyright (c) 2013 Rex
 """
 Utilities for reading bitcoin configuration files.
 """
@@ -33,6 +34,8 @@ def read_default_config(filename=None):
     Arguments:
 
     - `filename`: Path to a configuration file in a non-standard location (optional)
+
+    TODO: windows is not included
     """
     if filename is None:
         import os

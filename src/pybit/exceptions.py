@@ -233,3 +233,7 @@ class SignRawTransactionFailedError(PybitBaseException):
 
 class OperationNotSupportedError(PybitBaseException):
     pass
+
+
+class BitcoindStateError(PybitBaseException):
+    pass

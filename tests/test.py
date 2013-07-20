@@ -1,20 +1,18 @@
-'''
+"""
 Test script
 *WARNING* Don't run this on a production bitcoin server! *WARNING*
 Only on the test network.
-'''
+"""
 import sys
 sys.path.append('../src')
 
 import pybit
-# from pybit.exceptions import BitcoinException, InsufficientFunds
 
 from decimal import Decimal
 
 if __name__ == "__main__":
     conn = pybit.local_rpc_channel()  # will use read_default_config
-
-    assert(conn.getinfo().testnet) # don't test on prodnet
+    assert conn.getinfo().testnet # don't test on prodnet
 
     assert(type(conn.getblockcount()) is int)
     assert(type(conn.getconnectioncount()) is int)

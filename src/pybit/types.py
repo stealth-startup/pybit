@@ -27,9 +27,9 @@ class DynamicStruct(object):
 
     def __repr__(self):
         return '{module}.{classname}({slots})'.format(
-            module=self.__class__.__module__, classname=self.__class__.__name__,
-            slots=", ".join('{k}={v!r}'.format(k=k, v=v) for k, v in
-                            self.__dict__.items()))
+            module=self.__class__.__module__,
+            classname=self.__class__.__name__,
+            slots=", ".join('{k}={v!r}'.format(k=k, v=v) for k, v in self.__dict__.items()))
 
 
 class ServerInfo(DynamicStruct):
