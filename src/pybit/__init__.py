@@ -152,6 +152,8 @@ def send_from_local(payments, **kwargs):
     :rtype: str or tuple
     """
     if settings.IGNORE_SEND_FROM_LOCAL:
+        if kwargs.get('return_signed_transaction'):
+            return '0'*30, '0'*100
         return '0'*30  # a fake transaction id
 
     from decimal import Decimal
