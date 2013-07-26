@@ -177,7 +177,7 @@ def send_from_local(payments, **kwargs):
         _payments[address] = Decimal(amount)
     payments = _payments
 
-    rpc = local_rpc_channel()
+    rpc = local_rpc_channel(kwargs.get('config_file_name'))
 
     fee = kwargs.get('fee', rpc.getinfo().paytxfee)
     if not isinstance(fee, (Decimal, int, long)):
