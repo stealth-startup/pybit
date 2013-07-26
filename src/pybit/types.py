@@ -198,7 +198,7 @@ class Transaction(Printable):
         """
         assert isinstance(input_addresses, list)
         assert isinstance(outputs, list)
-        assert isinstance(hash, str)
+        assert isinstance(hash, (str, unicode))
 
         self.input_addresses = input_addresses
         self.outputs = outputs

@@ -79,7 +79,10 @@ def get_block_by_hash(block_hash, **kwargs):
             return util.populate_block__block_chain_dot_info(
                 util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash))
     elif source == settings.SOURCE_LOCAL:
-        raise exceptions.OperationNotSupportedError('local rpc does not support this operation yet')
+        rpc = local_rpc_channel(kwargs.get('config_file_name'))
+        if test_net != rpc.getinfo().testnet:
+            raise exceptions.BitcoindStateError(test_net=test_net, rpc_test_net=rpc.getinfo().testnet)
+        return util.retrieve_block__local(rpc, block_hash)
     elif source == settings.SOURCE_BLOCKEXPLORER_COM:
         if test_net:
             html_url = "http://blockexplorer.com/testnet/block/" + block_hash
@@ -112,10 +115,15 @@ def get_block_by_height(height, **kwargs):
         if test_net:
             raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
         else:
-            all_blocks = util.fetch_json('http://blockchain.info/block-height/%d?format=json' % height)
+            all_blocks = util.fetch_json('http://blockchain.info/block-height/%d?format=json' % height)['blocks']
             return util.populate_block__block_chain_dot_info([b for b in all_blocks if b.get('main_chain') is True][0])
     elif source == settings.SOURCE_LOCAL:
-        raise exceptions.OperationNotSupportedError('local rpc does not support this operation')
+        rpc = local_rpc_channel(kwargs.get('config_file_name'))
+        if test_net != rpc.getinfo().testnet:
+            raise exceptions.BitcoindStateError(test_net=test_net, rpc_test_net=rpc.getinfo().testnet)
+        block_hash = rpc.getblockhash(height)
+        return util.retrieve_block__local(rpc, block_hash,
+                                          only_wallet_transactions=kwargs.get('only_wallet_transactions', False))
     elif source == settings.SOURCE_BLOCKEXPLORER_COM:
         if test_net:
             html_url = "http://blockexplorer.com/testnet/b/" + str(height)

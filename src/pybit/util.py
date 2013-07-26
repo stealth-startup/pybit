@@ -1,25 +1,8 @@
-# Copyright (c) 2010 Witchspace <witchspace81@gmail.com>
 # Copyright (c) 2013 Rex
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-# THE SOFTWARE.
-"""Generic utilities used by bitcoin client library."""
+
 from datetime import datetime
 from types import Block, Transaction
+from connection import BitcoinConnection
 from lxml import html
 
 
@@ -99,6 +82,7 @@ def retrieve_block__block_explorer_dot_com(html_page_url, raw_block_url):
     :type raw_block_url: str
     :rtype: Block
     """
+    from decimal import Decimal
     page = html.parse(html_page_url)
     raw_data = fetch_json(raw_block_url)
 
@@ -110,10 +94,108 @@ def retrieve_block__block_explorer_dot_com(html_page_url, raw_block_url):
     txs = [
         Transaction(
             input_addresses=[e.get('href').split('/')[-1] for e in row.xpath('./td[4]/ul[1]/li/a')],
-            outputs=[(i, e.get('href').split('/')[-1], float(e.tail[1:].strip())) for i, e in enumerate(row.xpath('./td[5]/ul[1]/li/a'))],
+            outputs=[(i, e.get('href').split('/')[-1], int(Decimal(e.tail[1:].strip()) * 100000000) )
+                     for i, e in enumerate(row.xpath('./td[5]/ul[1]/li/a'))],
             hash=row.xpath('./td[1]/a[1]')[0].get('href').split('/')[-1]
         )
         for row in page.xpath('//table[contains(concat(" ", normalize-space(@class), " "), " txtable ")]//tr')[1:]
     ]
 
     return Block(height=height, hash=hash, previous_hash=previous_hash, transactions=txs, timestamp=timestamp)
+
+
+def block_hash_to_height__local(rpc, block_hash):
+    """
+    :type rpc: BitcoinConnection
+    :type block_hash: str
+    :rtype: int
+    """
+    return int(rpc.getblock(block_hash)['height'])
+
+
+def get_transaction_output__local(rpc, tx_hash, n=None):
+    """
+    :type rpc: BitcoinConnection
+    :type tx_hash: str
+    :rtype: tuple of (int, str, int) or list of tuple of (int, str, int)
+    """
+    from decimal import Decimal
+    from pybit.exceptions import CanNotParseNonstandardTransaction, OperationNotSupportedError
+    from pybit import settings
+
+    outputs = []
+    for out in rpc.getrawtransaction(tx_hash, True)['vout']:
+        try:
+            addresses = out['scriptPubKey']['addresses']
+        except KeyError:
+            assert out['scriptPubKey']['type'] == 'nonstandard'
+            # if we are getting all outputs, we can ignore this non-standard transaction
+            # or this output is not what we want, can also can ignore it
+            if n is None or n != int(out['n']):
+                continue
+            else:  # n == int(out['n'])
+                raise CanNotParseNonstandardTransaction(out=out)
+
+        if settings.TEST and len(addresses) != 1:  # currently we won't handle other cases
+            raise OperationNotSupportedError(addresses=addresses)
+
+        address = addresses[0]
+
+        assert isinstance(out['value'], (Decimal, int))  # make sure we won't have precision problem
+        amount = int(out['value'] * 100000000)
+
+        if n is None:
+            outputs.append((int(out['n']), address, amount))
+        elif n == int(out['n']):
+            return int(out['n']), address, amount
+
+    return outputs
+
+
+def get_transaction__local(rpc, tx_hash):
+    """
+
+    :param rpc:
+    :param tx_hash:
+    :type rpc: BitcoinConnection
+    :type tx_hash: str
+    :rtype: Transaction
+    """
+    tx_info = rpc.getrawtransaction(tx_hash, True)
+    outputs = get_transaction_output__local(rpc, tx_hash)
+    inputs = [get_transaction_output__local(rpc, vin['txid'],vin['vout'])[1]
+              for vin in tx_info['vin'] if 'coinbase' not in vin]
+    return Transaction(inputs, outputs, tx_hash)
+
+
+def retrieve_block__local(rpc, block_hash, only_wallet_transactions=True):
+    """
+    if only_wallet_transactions is False, we will try to decode the whole block,
+    otherwise, we only return transactions that are related to our wallet (make sure it's secure before you do this).
+    :type rpc: BitcoinConnection
+    :type block_hash: str
+    :type only_wallet_transactions: bool
+    :rtype: Block
+    """
+    block_info = rpc.getblock(block_hash)
+
+    height = int(block_info['height'])
+    previous_hash = block_info['previousblockhash']
+    timestamp = timestamp_to_datetime(block_info['time'])
+
+    tx_hashes = block_info["tx"]
+
+    if only_wallet_transactions:
+        wallet_hashes = set([tx_info.txid for tx_info in rpc.listsinceblock(
+            rpc.getblockhash(block_hash_to_height__local(rpc, block_hash) - 1))['transactions']
+            if tx_info.blockhash == block_hash and tx_info['category'] == 'receive'
+        ])
+        tx_hashes = [tx_hash for tx_hash in tx_hashes if tx_hash in wallet_hashes]
+
+    return Block(height=height, hash=block_hash, previous_hash=previous_hash, timestamp=timestamp,
+                 transactions=[get_transaction__local(rpc, tx_hash) for tx_hash in tx_hashes])
+
+
+
+
+

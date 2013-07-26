@@ -4,7 +4,7 @@
 Connect to Bitcoin server via JSON-RPC.
 """
 from pybit.proxy import AuthServiceProxy
-from pybit.exceptions import wrap_exception, BitcoinException, WalletPassphraseIncorrect,WalletAlreadyUnlocked
+from pybit.exceptions import wrap_exception, BitcoinException, WalletPassphraseIncorrect, WalletAlreadyUnlocked
 from pybit.types import ServerInfo, AccountInfo, AddressInfo, TransactionInfo, AddressValidation, WorkItem, MiningInfo
 
 
@@ -22,6 +22,7 @@ class BitcoinConnection(object):
     - *host* -- Bitcoin JSON-RPC host.
     - *port* -- Bitcoin JSON-RPC port.
     """
+
     def __init__(self, user, password, host='localhost', port=8332,
                  use_https=False):
         """
@@ -244,9 +245,7 @@ class BitcoinConnection(object):
         - *verbose* -- If False, return only the "hex" of the transaction.
 
         """
-        if verbose:
-            return TransactionInfo(**self.proxy.getrawtransaction(txid, 1))
-        return self.proxy.getrawtransaction(txid, 0)
+        return self.proxy.getrawtransaction(txid, int(verbose))
 
     def createrawtransaction(self, inputs, outputs):
         """
@@ -581,7 +580,7 @@ class BitcoinConnection(object):
             if dont_raise and isinstance(exception, WalletPassphraseIncorrect):
                 return False
             raise exception
-            
+
     def dumpprivkey(self, address):
         """
         Returns the private key belonging to <address>.
@@ -591,4 +590,4 @@ class BitcoinConnection(object):
         - *address* -- Bitcoin address whose private key should be returned.
         """
         return self.proxy.dumpprivkey(address)
-        
+

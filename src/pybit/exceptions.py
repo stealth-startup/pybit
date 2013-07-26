@@ -237,3 +237,7 @@ class OperationNotSupportedError(PybitBaseException):
 
 class BitcoindStateError(PybitBaseException):
     pass
+
+
+class CanNotParseNonstandardTransaction(PybitBaseException):
+    pass
