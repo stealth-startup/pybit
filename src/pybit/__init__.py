@@ -77,7 +77,7 @@ def get_block_by_hash(block_hash, **kwargs):
             raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
         else:
             return util.populate_block__block_chain_dot_info(
-                util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash))
+                util.fetch_json('http://blockchain.info/rawblock/%s' % block_hash), **kwargs)
     elif source == settings.SOURCE_LOCAL:
         rpc = local_rpc_channel(kwargs.get('config_file_name'))
         if test_net != rpc.getinfo().testnet:
@@ -116,7 +116,8 @@ def get_block_by_height(height, **kwargs):
             raise exceptions.OperationNotSupportedError('test_net is not supported in blockchain.info')
         else:
             all_blocks = util.fetch_json('http://blockchain.info/block-height/%d?format=json' % height)['blocks']
-            return util.populate_block__block_chain_dot_info([b for b in all_blocks if b.get('main_chain') is True][0])
+            return util.populate_block__block_chain_dot_info(
+                [b for b in all_blocks if b.get('main_chain') is True][0], **kwargs)
     elif source == settings.SOURCE_LOCAL:
         rpc = local_rpc_channel(kwargs.get('config_file_name'))
         if test_net != rpc.getinfo().testnet:

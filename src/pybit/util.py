@@ -58,6 +58,13 @@ def populate_block__block_chain_dot_info(json_block, **extra_attributes):
         )
         for tx in json_block['tx'] if 'hash' in tx
     ]
+    if extra_attributes.get('ensure_order', True):
+        import pybit
+        rpc = pybit.local_rpc_channel(extra_attributes.get('config_file_name'))
+        block_info = rpc.getblock(hash)
+        tx_hashes = block_info["tx"]
+        """:type: list of str"""
+        txs.sort(key=lambda tx: tx_hashes.index(tx.hash))
 
     return Block(height=height, hash=hash, previous_hash=previous_hash, transactions=txs, timestamp=timestamp)
 
@@ -136,10 +143,7 @@ def get_transaction_output__local(rpc, tx_hash, n=None):
             else:  # n == int(out['n'])
                 raise CanNotParseNonstandardTransaction(out=out)
 
-        if settings.TEST and len(addresses) != 1:  # currently we won't handle other cases
-            raise OperationNotSupportedError(addresses=addresses)
-
-        address = addresses[0]
+        address = addresses[0]  # for those multi-address transactions, we will only record the first one
 
         assert isinstance(out['value'], (Decimal, int))  # make sure we won't have precision problem
         amount = int(out['value'] * 100000000)
