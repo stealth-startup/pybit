@@ -215,7 +215,7 @@ def wrap_exception(error):
 
 class PybitBaseException(Exception):
     def __init__(self, *args, **kwargs):
-        lkw = ["%s: %s" % (str(k), str(v)) for k, v in kwargs]
+        lkw = ["%s: %s" % (str(k), str(v)) for k, v in kwargs.iteritems()]
         Exception.__init__(self, *(args + tuple(lkw)))
 
 

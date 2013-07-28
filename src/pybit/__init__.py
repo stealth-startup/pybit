@@ -259,3 +259,32 @@ def send_from_local(payments, **kwargs):
             except WalletWrongEncState:
                 pass
 
+
+def locate_tx_local(tx_hash, **kwargs):
+    """
+    :param tx_hash: part of a transaction hash or the whole hash
+    :type tx_hash: str
+    :rtype: tuple of (int, str, str)
+    :return: height and hash of the block, the qualified hash of transaction
+    """
+    rpc = local_rpc_channel(kwargs.get('config_file_name'))
+    block_height_upper_bound = kwargs.get('block_height_upper_bound', rpc.getblockcount())
+    block_height_lower_bound = kwargs.get('block_height_lower_bound', 0)
+    verbose = kwargs.get('verbose', False)
+
+    n = block_height_upper_bound
+
+    while n >= block_height_lower_bound:
+        if verbose:
+            print 'searching block at height ' + str(n) + (' ...')
+        block_hash = rpc.getblockhash(n)
+        tx_hashes = rpc.getblock(block_hash)['tx']
+        for h in tx_hashes:
+            if unicode(tx_hash) in h:
+                if verbose:
+                    print 'found'
+                return n, block_hash, h
+        n -= 1
+
+    if verbose:
+        print 'not found'

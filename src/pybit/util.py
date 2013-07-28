@@ -127,8 +127,7 @@ def get_transaction_output__local(rpc, tx_hash, n=None):
     :rtype: tuple of (int, str, int) or list of tuple of (int, str, int)
     """
     from decimal import Decimal
-    from pybit.exceptions import CanNotParseNonstandardTransaction, OperationNotSupportedError
-    from pybit import settings
+    from pybit.exceptions import CanNotParseNonstandardTransaction
 
     outputs = []
     for out in rpc.getrawtransaction(tx_hash, True)['vout']:
