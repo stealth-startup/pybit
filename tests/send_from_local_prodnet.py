@@ -25,5 +25,4 @@ if __name__ == "__main__":
     from_addresses = [sender]
     fee = Decimal("0")  # no fee
     #fee = Decimal("0.001")  # add fee
-    tx = pybit.send_from_local(payments, from_addresses=from_addresses, fee=fee, change_address=sender)
-    print tx
+    print pybit.send_from_local(payments, from_addresses=from_addresses, fee=fee, change_address=sender)
