@@ -260,6 +260,11 @@ def send_from_local(payments, **kwargs):
                 pass
 
 
+def get_transaction_local(tx_hash, **kwargs):
+    from pybit.util import get_transaction__local
+    return get_transaction__local(local_rpc_channel(**kwargs), tx_hash)
+
+
 def locate_tx_local(tx_hash, **kwargs):
     """
     :param tx_hash: part of a transaction hash or the whole hash
